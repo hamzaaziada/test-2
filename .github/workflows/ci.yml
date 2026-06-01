@@ -1,0 +1,36 @@
+name: ci
+
+# Continuous checks (MASTER-BUILD-PROMPT.md Part E): build the portable core and run
+# the CTest suite, which includes the layout-quality oracle (FR-I01) and the hard
+# collision gate (FR-I03 — overlap must be 0). A geometry regression turns this red.
+on:
+  push:
+    branches: ["**"]
+  pull_request:
+
+jobs:
+  build-and-gate:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Configure (C++20, Release)
+        run: cmake -S . -B build -DCMAKE_BUILD_TYPE=Release
+
+      - name: Build
+        run: cmake --build build -j
+
+      - name: Run tests (oracle + collision gate)
+        working-directory: build
+        run: ctest --output-on-failure
+
+      - name: Emit reference artifact
+        working-directory: build
+        run: ./lattice_demo
+
+      - name: Upload reference SVG
+        uses: actions/upload-artifact@v4
+        with:
+          name: lattice-reference-svg
+          path: build/lattice_reference.svg
+          if-no-files-found: error
